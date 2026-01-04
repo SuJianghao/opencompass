@@ -57,7 +57,7 @@ class DatasetReader:
 
     def __init__(self,
                  dataset: Union[Dataset, DatasetDict, str],
-                 input_columns: Union[List[str], str]x x,
+                 input_columns: Union[List[str], str],
                  output_column: Optional[str],
                  input_template: Optional[PromptTemplate] = None,
                  output_template: Optional[PromptTemplate] = None,

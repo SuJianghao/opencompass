@@ -17,9 +17,9 @@ from typing import List, Any
 from opencompass.openicl.icl_evaluator.base import BaseEvaluator
 from opencompass.registry import ICL_EVALUATORS
 
-# 从你复制来的 utils.py 引入 eval_instance
-from opencompass.evaluators.swe_bench.utils import eval_instance
-from swebench.inference.make_datasets.utils import extract_diff  # 官方的patch清理工具
+from opencompass.datasets.swe_bench.utils import eval_instance
+from swebench.inference.make_datasets.utils import extract_diff 
+
 
 
 @LOAD_DATASET.register_module()
@@ -53,9 +53,11 @@ class SWEBenchDataset(BaseDataset):
         return dataset
 
 
+
 @TEXT_POSTPROCESSORS.register_module('gsm8k_dataset')
 def gsm8k_dataset_postprocess(text: str) -> str:
     return text.split('#### ')[1].replace(',', '')
+
 
 
 @TEXT_POSTPROCESSORS.register_module('gsm8k')
@@ -68,15 +70,13 @@ def gsm8k_postprocess(text: str) -> str:
 
 
 
-
-
 @ICL_EVALUATORS.register_module()
 class SWEBenchEvaluator(BaseEvaluator):
-    """Evaluator for SWE-bench using the harness functions you copied."""
+    """Evaluator for SWE-bench."""
 
     def __init__(self,
                  timeout: int = 1800,
-                 log_dir: str = './outputs/swebench_eval',
+                 log_dir: str = '/outputs/swebench_eval',
                  build_docker_images: bool = False,
                  pull_remote_images_if_available: bool = True,
                  force_arch: str = '',
@@ -96,6 +96,7 @@ class SWEBenchEvaluator(BaseEvaluator):
         self.pull_remote_images_if_available = pull_remote_images_if_available
         self.force_arch = force_arch
 
+        
     def score(self, predictions: List[Any], references: List[Any], test_set: Any):
         """OpenCompass会把模型预测、参考标签和HF Dataset传进来."""
         if len(predictions) != len(references):
@@ -103,14 +104,15 @@ class SWEBenchEvaluator(BaseEvaluator):
 
         # 如果需要，可以调用 build_images() 构建镜像
         if self.build_docker_images:
-            from opencompass.evaluators.swe_bench.build_images import build_images
+            from opencompass.datasets.swe_bench.build_images import build_images
             samples = test_set['test'] if 'test' in test_set else test_set
-            build_images(samples=samples,
+            # 构建镜像
+            build_images(samples=samples, 
                          force_rebuild=False,
                          max_workers=4,
                          use_remote_images=self.pull_remote_images_if_available,
                          force_arch=self.force_arch)
-
+        
         # 遍历模型输出，逐条评测
         details = {}
         resolved_count = 0

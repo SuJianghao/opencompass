@@ -306,6 +306,7 @@ def main():
         rs_exist_results = [comb['combination'] for comb in existing_results_list]
         cfg['rs_exist_results'] = rs_exist_results
 
+
     # report to lark bot if specify --lark
     if not args.lark:
         cfg['lark_bot_url'] = None
@@ -345,7 +346,7 @@ def main():
             cfg.infer.runner.lark_bot_url = cfg['lark_bot_url']
         cfg.infer.partitioner['out_dir'] = osp.join(cfg['work_dir'],
                                                     'predictions/')
-        partitioner = PARTITIONERS.build(cfg.infer.partitioner)
+        partitioner = PARTITIONERS.build(cfg.infer.partitioner) 
         tasks = partitioner(cfg)
         if args.dry_run:
             return
@@ -395,9 +396,9 @@ def main():
         partitioner = PARTITIONERS.build(cfg.eval.partitioner)
         tasks = partitioner(cfg)
         if args.dry_run:
-            return
+            return  
         runner = RUNNERS.build(cfg.eval.runner)
-
+        
         # For meta-review-judge in subjective evaluation
         if isinstance(tasks, list) and len(tasks) != 0 and isinstance(
                 tasks[0], list):
