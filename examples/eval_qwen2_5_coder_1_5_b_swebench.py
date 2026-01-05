@@ -1,4 +1,6 @@
 """
+export PYTHONPATH=/home/featurize/opencompass 
+export VLLM_WORKER_MULTIPROC_METHOD=spawn
 python run.py examples/eval_qwen2_5_coder_1_5_b_swebench.py -a vllm  --debug
 """
 

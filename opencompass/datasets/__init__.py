@@ -1,3 +1,4 @@
+from .SWE_bench.swe_bench import SWEBenchDataset, SWEBenchEvaluator  # noqa: F401, F403
 from .advglue import *  # noqa: F401, F403
 from .afqmcd import *  # noqa: F401, F403
 from .agieval import *  # noqa: F401, F403

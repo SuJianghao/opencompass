@@ -14,10 +14,10 @@ from ..base import BaseDataset
 from pathlib import Path
 from typing import List, Any
 
-from opencompass.openicl.icl_evaluator.base import BaseEvaluator
-from opencompass.registry import ICL_EVALUATORS
+from opencompass.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
+from opencompass.registry import LOAD_DATASET, ICL_EVALUATORS
 
-from opencompass.datasets.swe_bench.utils import eval_instance
+from opencompass.datasets.SWE_bench.utils import eval_instance
 from swebench.inference.make_datasets.utils import extract_diff 
 
 
@@ -104,7 +104,7 @@ class SWEBenchEvaluator(BaseEvaluator):
 
         # 如果需要，可以调用 build_images() 构建镜像
         if self.build_docker_images:
-            from opencompass.datasets.swe_bench.build_images import build_images
+            from opencompass.datasets.SWE_bench.build_images import build_images
             samples = test_set['test'] if 'test' in test_set else test_set
             # 构建镜像
             build_images(samples=samples, 

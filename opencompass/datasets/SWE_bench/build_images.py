@@ -1,7 +1,7 @@
 import traceback
 from typing import TYPE_CHECKING, Dict, List, Literal
 
-from opencompass.datasets.swe_bench.utils import run_in_threads_with_progress
+from opencompass.datasets.SWE_bench.utils import run_in_threads_with_progress
 from opencompass.utils import get_logger
 
 if TYPE_CHECKING:
@@ -122,7 +122,35 @@ def build_images(
             max_workers=max_workers,
             **extra_build_instance_images_kwargs,
         )
+    # -------------------------------------------------------------
+    # FIX: Repair SWE-bench namespace mismatch causing false missing_images
+    # If fallback local build created images without the "swebench/" prefix,
+    # we detect them and add the expected official tag.
+    # -------------------------------------------------------------
+    available_docker_images = _get_available_docker_images()
 
+    for instance_id, expected_name in id_to_docker_image.items():
+        expected_repo, expected_tag = expected_name.split(":")
+
+        # Remove swebench/ prefix to search local images
+        if expected_repo.startswith("swebench/"):
+            local_repo = expected_repo.replace("swebench/", "")
+        else:
+            local_repo = expected_repo
+
+        local_name = f"{local_repo}:{expected_tag}"
+
+        # If official (expected) tag is missing but local version exists → fix by tagging
+        if expected_name not in available_docker_images and local_name in available_docker_images:
+            docker_client.api.tag(local_name, expected_repo, expected_tag)
+            logger.warning(
+                f"[AUTO-FIX] Added missing namespace tag:\n"
+                f"    {local_name}  →  {expected_name}"
+            )
+
+    # update images after fix
+    available_docker_images = _get_available_docker_images()
+    # -------------------------------------------------------------
     # Check that all the images were built
     available_docker_images = _get_available_docker_images()
     missing_images = [
