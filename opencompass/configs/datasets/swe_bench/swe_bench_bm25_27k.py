@@ -5,10 +5,10 @@ from opencompass.datasets.SWE_bench import SWEBenchDataset, SWEBenchEvaluator  #
 
 swebench_reader_cfg = dict(
     input_columns=['text'], # 使用BM25版的 text 字段
-    output_column='instance_id', # golden patch, 但在评测中不需要
+    output_column='instance_id', 
     train_split='test',
     test_split='test',
-    test_range='[:2]'
+    test_range='[:10]'
 )
 
 
