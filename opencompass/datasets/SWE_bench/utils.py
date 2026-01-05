@@ -2,6 +2,7 @@ import platform
 import traceback
 from pathlib import Path, PurePosixPath
 import re
+import json
 from typing import Any, Awaitable, Callable, List, Optional, Sequence, TypeVar, Union
 from concurrent.futures import ThreadPoolExecutor, wait
 import logging
@@ -15,6 +16,19 @@ logger = get_logger()
 
 T = TypeVar('T')
 R = TypeVar('R')
+
+
+def find_golden_patch(instance_id):
+    data_path = "/home/featurize/data/AI-ModelScope/SWE-bench/data/test-00000-of-00001.json"
+
+    # 1. 打开文件并加载为 Python 对象
+    with open(data_path, "r", encoding="utf-8") as f:
+        data = json.load(f)  # 自动把 JSON 转成 Python dict 或 list
+    
+    for item in data:
+        if item.get("instance_id") == instance_id:
+            return item.get("patch")
+    return None
 
 
 def get_remote_docker_image_from_id(instance_id: str) -> str:

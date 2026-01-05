@@ -17,7 +17,7 @@ from typing import List, Any
 from opencompass.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
 from opencompass.registry import LOAD_DATASET, ICL_EVALUATORS
 
-from opencompass.datasets.SWE_bench.utils import eval_instance
+from opencompass.datasets.SWE_bench.utils import eval_instance, find_golden_patch
 from swebench.inference.make_datasets.utils import extract_diff 
 
 
@@ -53,20 +53,68 @@ class SWEBenchDataset(BaseDataset):
         return dataset
 
 
+def compute_swebench_metrics(report: dict) -> dict:
+    """
+    根据 SWE-bench 的评测 report 计算四个指标：
+    - %Resolved：FTP=1 & PTP=1 的比例
+    - %Apply：patch 应用成功比例
+    - avg_FTP_rate：平均 FAIL_TO_PASS 测试通过率
+    - avg_PTP_rate：平均 PASS_TO_PASS 测试保持通过率
 
-@TEXT_POSTPROCESSORS.register_module('gsm8k_dataset')
-def gsm8k_dataset_postprocess(text: str) -> str:
-    return text.split('#### ')[1].replace(',', '')
+    Args:
+        report (dict): {instance_id: {...}} 格式的评测结果
 
+    Returns:
+        dict: 包含上述四个指标的字典
+    """
+    total_count = 0
+    resolved_count = 0
+    apply_count = 0
+    ftp_rates = []
+    ptp_rates = []
 
+    for instance_id, inst_report in report.items():
+        total_count += 1
 
-@TEXT_POSTPROCESSORS.register_module('gsm8k')
-def gsm8k_postprocess(text: str) -> str:
-    text = text.split('Question:')[0]
-    numbers = re.findall(r'\-?\d+\.\d+|\-?\d+', text)
-    if not numbers:
-        return 'NULL'
-    return numbers[-1]
+        # 应用成功
+        if inst_report.get('patch_successfully_applied', False):
+            apply_count += 1
+
+        # 提取测试状态并计算 FTP/PTP
+        ftp_rate = None
+        ptp_rate = None
+        if 'tests_status' in inst_report:
+            ts = inst_report['tests_status']
+            # FAIL_TO_PASS
+            ftp_success = len(ts['FAIL_TO_PASS']['success'])
+            ftp_failure = len(ts['FAIL_TO_PASS']['failure'])
+            if (ftp_success + ftp_failure) > 0:
+                ftp_rate = ftp_success / (ftp_success + ftp_failure)
+
+            # PASS_TO_PASS
+            ptp_success = len(ts['PASS_TO_PASS']['success'])
+            ptp_failure = len(ts['PASS_TO_PASS']['failure'])
+            if (ptp_success + ptp_failure) > 0:
+                ptp_rate = ptp_success / (ptp_success + ptp_failure)
+
+        # 汇总 rate 列表
+        if ftp_rate is not None:
+            ftp_rates.append(ftp_rate)
+        if ptp_rate is not None:
+            ptp_rates.append(ptp_rate)
+
+        # 计算 resolved 条件：FTP=1 且 PTP=1
+        if ftp_rate == 1.0 and ptp_rate == 1.0:
+            resolved_count += 1
+
+    # 汇总输出
+    metrics = {
+        '%Resolved': (resolved_count / total_count * 100.0) if total_count else None,
+        '%Apply': (apply_count / total_count * 100.0) if total_count else None,
+        'avg_FTP_rate': sum(ftp_rates) / len(ftp_rates) if ftp_rates else None,
+        'avg_PTP_rate': sum(ptp_rates) / len(ptp_rates) if ptp_rates else None
+    }
+    return metrics
 
 
 
@@ -117,10 +165,10 @@ class SWEBenchEvaluator(BaseEvaluator):
         details = {}
         resolved_count = 0
         total_count = len(predictions)
-
         for idx, (pred, instance_id) in enumerate(zip(predictions, references)):
             # 1. 清理模型输出成git diff patch
             patch = extract_diff(pred)
+            # patch = find_golden_patch(instance_id=instance_id) # 替换为golden patch进行测试
 
             # 2. 从数据集中找到这个instance的metadata
             if 'test' in test_set:
@@ -139,7 +187,8 @@ class SWEBenchEvaluator(BaseEvaluator):
                                         pred=patch,
                                         timeout=self.timeout,
                                         log_dir=self.log_dir)
-
+            
+            
             resolved_flag = 1 if eval_result.get('resolved', False) else 0
             resolved_count += resolved_flag
 
@@ -149,8 +198,12 @@ class SWEBenchEvaluator(BaseEvaluator):
                 'report': eval_result.get('report', {})
             }
 
-        acc = (resolved_count / total_count * 100.0) if total_count > 0 else 0.0
-        return {
-            'acc': acc,
-            'details': details
-        }
+        report_all = {}
+        for d in details.values():
+            r = d.get("report", {})
+            for inst_id, inst_report in r.items():
+                report_all[inst_id] = inst_report
+
+        metrics_dict = compute_swebench_metrics(report_all)
+        metrics_dict['details'] = details
+        return metrics_dict

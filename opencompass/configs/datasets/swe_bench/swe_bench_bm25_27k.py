@@ -8,7 +8,7 @@ swebench_reader_cfg = dict(
     output_column='instance_id', 
     train_split='test',
     test_split='test',
-    test_range='[:10]'
+    # test_range='[:1]'
 )
 
 
@@ -24,7 +24,7 @@ swebench_infer_cfg = dict(
 swebench_eval_cfg = dict(
     evaluator=dict(type=SWEBenchEvaluator, 
                    timeout=1800,
-                   log_dir = '/home/featurize/data/outputs/swebench_eval',
+                   log_dir = '/home/featurize/opencompass/outputs/swebench_eval',
                    build_docker_images = True,
                    pull_remote_images_if_available = True,
                    ),  # 这里挂你写的评估器类
@@ -35,8 +35,8 @@ swebench_eval_cfg = dict(
 swebench_datasets = [
     dict(
         type=SWEBenchDataset,     # 或者自定义Dataset类
-        abbr='swebench-bm25-27k',
-        path='/home/featurize/data/princeton-nlp/SWE-bench_bm25_27K/data',
+        abbr='swebench-bm25-13k',
+        path='/home/featurize/work/princeton-nlp/SWE-bench_bm25_13K/data',
         reader_cfg=swebench_reader_cfg,
         infer_cfg=swebench_infer_cfg,
         eval_cfg=swebench_eval_cfg
