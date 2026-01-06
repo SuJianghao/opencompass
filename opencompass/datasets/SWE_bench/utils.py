@@ -84,6 +84,7 @@ def find_golden_patch(instance_id):
     return None
 
 
+
 def get_remote_docker_image_from_id(instance_id: str) -> str:
     """Image name format as found on DockerHub since swebench v3.0"""
     # NOTE: The swebench library contains this logic within `make_test_spec`,

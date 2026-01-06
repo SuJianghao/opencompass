@@ -7,6 +7,7 @@ from datasets import Features, Value, Dataset, DatasetDict
 from opencompass.openicl import BaseEvaluator
 from opencompass.registry import LOAD_DATASET, TEXT_POSTPROCESSORS
 from opencompass.utils import get_data_path
+from tqdm import tqdm
 
 from ..base import BaseDataset
 
@@ -232,7 +233,11 @@ class SWEBenchEvaluator(BaseEvaluator):
         resolved_count = 0
         total_count = len(predictions)
         report_all = {}
-        for idx, (pred, instance_id) in enumerate(zip(predictions, references)):
+        for idx, (pred, instance_id) in enumerate(
+                tqdm(zip(predictions, references),
+                     total=len(predictions),
+                     desc="Evaluating SWE-bench instances",
+                     unit="instance")):
             # 1. 清理模型输出成git diff patch
             patch = extract_diff(pred)
             # patch = find_golden_patch(instance_id=instance_id) # 替换为golden patch进行测试
