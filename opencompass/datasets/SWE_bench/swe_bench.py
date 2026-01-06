@@ -4,7 +4,7 @@ import re
 from os import environ
 
 import datasets as hf_datasets
-from datasets import Dataset, DatasetDict
+from datasets import Features, Value
 from opencompass.openicl import BaseEvaluator
 from opencompass.registry import LOAD_DATASET, TEXT_POSTPROCESSORS
 from opencompass.utils import get_data_path
@@ -16,10 +16,56 @@ from typing import List, Any
 
 from opencompass.openicl.icl_evaluator.icl_base_evaluator import BaseEvaluator
 from opencompass.registry import LOAD_DATASET, ICL_EVALUATORS
+from swebench.harness.test_spec.test_spec import MAP_REPO_VERSION_TO_SPECS
 
 from opencompass.datasets.SWE_bench.utils import eval_instance, find_golden_patch
 from swebench.inference.make_datasets.utils import extract_diff 
 
+def check_data(data):
+    dataset = data
+    # ===== 扫描不在 MAP_REPO_VERSION_TO_SPECS 的样本 =====
+    bad_samples = []
+    bad_version_5 = []
+
+    for sample in dataset:
+        repo = sample.get("repo")
+        version = str(sample.get("version"))  # 转成字符串避免 int/str 混用
+
+        if repo not in MAP_REPO_VERSION_TO_SPECS:
+            bad_samples.append({
+                "instance_id": sample.get("instance_id"),
+                "repo": repo,
+                "version": version,
+                "reason": "repo_not_found"
+            })
+            continue
+
+        if version not in MAP_REPO_VERSION_TO_SPECS[repo]:
+            reason = "version_not_found"
+            if version == "5":
+                bad_version_5.append({
+                    "instance_id": sample.get("instance_id"),
+                    "repo": repo,
+                    "version": version
+                })
+                reason = "version_is_5"
+            bad_samples.append({
+                "instance_id": sample.get("instance_id"),
+                "repo": repo,
+                "version": version,
+                "reason": reason
+            })
+
+    # ===== 输出结果 =====
+    print("=" * 80)
+    print(f"检测到 {len(bad_samples)} 条 repo+version 不在 MAP_REPO_VERSION_TO_SPECS 中")
+    for bad in bad_samples:
+        print(f"{bad['instance_id']} | {bad['repo']} | {bad['version']} | {bad['reason']}")
+
+    print("=" * 80)
+    print(f"其中 version = '5' 的样本共有 {len(bad_version_5)} 条：")
+    for bad in bad_version_5:
+        print(f"{bad['instance_id']} | {bad['repo']} | {bad['version']}")
 
 
 @LOAD_DATASET.register_module()
@@ -42,14 +88,34 @@ class SWEBenchDataset(BaseDataset):
         dev_files = collect_files('dev')
         test_files = collect_files('test')
 
+        # ==== 这里是关键改动 ====
+        features = Features({
+            "instance_id": Value("string"),
+            "text": Value("string"),
+            "repo": Value("string"),
+            "base_commit": Value("string"),
+            "problem_statement": Value("string"),
+            "hints_text": Value("string"),
+            "created_at": Value("string"),
+            "patch": Value("string"),
+            "test_patch": Value("string"),
+            "version": Value("string"),
+            "FAIL_TO_PASS": Value("string"),
+            "PASS_TO_PASS": Value("string"),
+            "environment_setup_commit": Value("string")
+        })
+
         dataset = hf_datasets.load_dataset(
-            'json',  # 同时支持 .json 和 .jsonl
+            'json',
             data_files={
                 'train': train_files,
                 'dev': dev_files,
                 'test': test_files
-            }
+            },
+            features=features  # 👉 强制列类型
         )
+        # ========================
+
         return dataset
 
 
@@ -159,6 +225,7 @@ class SWEBenchEvaluator(BaseEvaluator):
         if self.build_docker_images:
             from opencompass.datasets.SWE_bench.build_images import build_images
             samples = test_set['test'] if 'test' in test_set else test_set
+            check_data(samples)
             # 构建镜像
             build_images(samples=samples, 
                          force_rebuild=False,

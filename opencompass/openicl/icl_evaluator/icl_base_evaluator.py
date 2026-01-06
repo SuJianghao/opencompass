@@ -115,7 +115,7 @@ class BaseEvaluator:
             if len(score_kwargs['predictions']) != len(
                     score_kwargs['references']):
                 raise ValueError(
-                    'Predictions and references must have the same length')
+                    f'Predictions and references must have the same length, predictions length: {len(score_kwargs["predictions"])}, references length: {len(score_kwargs["references"])}')
 
         real_size = len(original_dataset) // n  # dataset size of each replica
         all_details = []

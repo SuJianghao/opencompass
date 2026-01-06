@@ -4,7 +4,7 @@ export VLLM_WORKER_MULTIPROC_METHOD=spawn
 python run.py examples/eval_qwen2_5_coder_1_5_b_swebench.py -a vllm  --debug
 
 export VLLM_WORKER_MULTIPROC_METHOD=spawn
-python run.py examples/eval_qwen2_5_coder_1_5_b_swebench.py -m eval -r 20260105_233034 --debug
+python run.py examples/eval_qwen2_5_coder_1_5_b_swebench.py -m eval -r 20260105_205718 --debug
 """
 
 from mmengine.config import read_base

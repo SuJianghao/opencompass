@@ -8,7 +8,7 @@ swebench_reader_cfg = dict(
     output_column='instance_id', 
     train_split='test',
     test_split='test',
-    test_range='[:5]'
+    # test_range='[:5]'
 )
 
 
