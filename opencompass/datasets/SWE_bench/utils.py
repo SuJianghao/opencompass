@@ -9,6 +9,7 @@ import logging
 import time
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
+from swebench.harness.test_spec.test_spec import MAP_REPO_VERSION_TO_SPECS
 
 from opencompass.utils import get_logger
 
@@ -17,6 +18,58 @@ logger = get_logger()
 T = TypeVar('T')
 R = TypeVar('R')
 
+
+
+def check_data(data):
+    dataset = data
+    # ===== 扫描不在 MAP_REPO_VERSION_TO_SPECS 的样本 =====
+    bad_samples = []
+    bad_version_5 = []
+    type_set = set()
+
+    for sample in dataset:
+        # if isinstance(sample, str):
+        #     print(sample)
+        repo = sample.get("repo")
+        version = sample.get("version")  # 转成字符串避免 int/str 混用
+        if type(version) not in type_set:
+            type_set.add(type(version))
+            # print(f"version 的类型新增：{type(version)}")
+
+        if repo not in MAP_REPO_VERSION_TO_SPECS:
+            bad_samples.append({
+                "instance_id": sample.get("instance_id"),
+                "repo": repo,
+                "version": version,
+                "reason": "repo_not_found"
+            })
+            continue
+
+        if version not in MAP_REPO_VERSION_TO_SPECS[repo]:
+            reason = "version_not_found"
+            if version == "5":
+                bad_version_5.append({
+                    "instance_id": sample.get("instance_id"),
+                    "repo": repo,
+                    "version": version
+                })
+                reason = "version_is_5"
+            bad_samples.append({
+                "instance_id": sample.get("instance_id"),
+                "repo": repo,
+                "version": version,
+                "reason": reason
+            })
+
+    # ===== 输出结果 =====
+    print("=" * 80)
+    print(f"检测到 {len(bad_samples)} 条 repo+version 不在 MAP_REPO_VERSION_TO_SPECS 中")
+    for bad in bad_samples:
+        print(f"{bad['instance_id']} | {bad['repo']} | {bad['version']} | {type(bad['version'])} | {bad['reason']}")
+    print(type_set)
+
+
+    
 
 def find_golden_patch(instance_id):
     data_path = "/home/featurize/data/AI-ModelScope/SWE-bench/data/test-00000-of-00001.json"
