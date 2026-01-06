@@ -76,15 +76,19 @@ def compute_swebench_metrics(report: dict) -> dict:
     for instance_id, inst_report in report.items():
         total_count += 1
 
+        # 如果是字符串，说明是Patch Apply Failed，直接跳过
+        if "error" in inst_report:
+            continue
+
         # 应用成功
-        if inst_report.get('patch_successfully_applied', False):
+        if inst_report.get(instance_id, {}).get('patch_successfully_applied', False):
             apply_count += 1
 
         # 提取测试状态并计算 FTP/PTP
         ftp_rate = None
         ptp_rate = None
-        if 'tests_status' in inst_report:
-            ts = inst_report['tests_status']
+        if 'tests_status' in inst_report.get(instance_id, {}):
+            ts = inst_report.get(instance_id, {})['tests_status']
             # FAIL_TO_PASS
             ftp_success = len(ts['FAIL_TO_PASS']['success'])
             ftp_failure = len(ts['FAIL_TO_PASS']['failure'])
@@ -103,11 +107,12 @@ def compute_swebench_metrics(report: dict) -> dict:
         if ptp_rate is not None:
             ptp_rates.append(ptp_rate)
 
-        # 计算 resolved 条件：FTP=1 且 PTP=1
-        if ftp_rate == 1.0 and ptp_rate == 1.0:
+        # 计算 resolved
+        if inst_report.get(instance_id, {}).get("resolved", False):
             resolved_count += 1
 
     # 汇总输出
+    print('total_count:', total_count)
     metrics = {
         '%Resolved': (resolved_count / total_count * 100.0) if total_count else None,
         '%Apply': (apply_count / total_count * 100.0) if total_count else None,
@@ -165,6 +170,7 @@ class SWEBenchEvaluator(BaseEvaluator):
         details = {}
         resolved_count = 0
         total_count = len(predictions)
+        report_all = {}
         for idx, (pred, instance_id) in enumerate(zip(predictions, references)):
             # 1. 清理模型输出成git diff patch
             patch = extract_diff(pred)
@@ -191,6 +197,7 @@ class SWEBenchEvaluator(BaseEvaluator):
             
             resolved_flag = 1 if eval_result.get('resolved', False) else 0
             resolved_count += resolved_flag
+            report_all[instance_id] = eval_result.get('report', {})
 
             details[str(idx)] = {
                 'resolved': resolved_flag,
@@ -198,11 +205,6 @@ class SWEBenchEvaluator(BaseEvaluator):
                 'report': eval_result.get('report', {})
             }
 
-        report_all = {}
-        for d in details.values():
-            r = d.get("report", {})
-            for inst_id, inst_report in r.items():
-                report_all[inst_id] = inst_report
 
         metrics_dict = compute_swebench_metrics(report_all)
         metrics_dict['details'] = details
